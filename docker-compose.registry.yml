@@ -1,0 +1,13 @@
+services:
+  vkanban:
+    container_name: vkanban
+    image: docker-registry.app.chikorel.com/vkanban/vkanban:latest
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+    env_file:
+      - .env.local

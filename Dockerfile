@@ -38,7 +38,7 @@ COPY . .
 
 # Build application
 RUN npm run generate-types
-RUN cd frontend && pnpm run build
+RUN cd frontend && NODE_OPTIONS="--max-old-space-size=4096" pnpm run build
 RUN cargo build --release --bin server
 
 # Runtime stage

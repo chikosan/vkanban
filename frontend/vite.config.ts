@@ -49,6 +49,8 @@ export default schemas;
   };
 }
 
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
+
 export default defineConfig({
   plugins: [
     react({
@@ -67,9 +69,15 @@ export default defineConfig({
         ],
       },
     }),
-    sentryVitePlugin({ org: "bloop-ai", project: "vibe-kanban" }),
+    sentryAuthToken
+      ? sentryVitePlugin({
+          org: "bloop-ai",
+          project: "vibe-kanban",
+          authToken: sentryAuthToken,
+        })
+      : null,
     executorSchemasPlugin(),
-  ],
+  ].filter(Boolean) as Plugin[],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
