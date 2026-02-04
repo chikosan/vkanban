@@ -68,7 +68,14 @@ async function getRegistrationToken() {
 }
 
 async function createServer(name, serverType = "cx53") {
-  const githubToken = await getRegistrationToken();
+  let githubToken = "";
+  try {
+    githubToken = await getRegistrationToken();
+  } catch (e) {
+    console.error(`Warning: Could not get GitHub registration token: ${e.message}`);
+    console.error("The server will be created but might not register as a runner.");
+  }
+
   const arch = serverType.startsWith("cax") ? "arm64" : "x64";
   const runnerUrl = arch === "arm64" 
     ? "https://github.com/actions/runner/releases/download/v2.321.0/actions-runner-linux-arm64-2.321.0.tar.gz"
@@ -82,13 +89,17 @@ systemctl start docker
 systemctl enable docker
 
 # Install GitHub Runner
-mkdir /actions-runner && cd /actions-runner
-curl -o runner.tar.gz -L ${runnerUrl}
-tar xzf runner.tar.gz
-export RUNNER_ALLOW_RUNASROOT=1
-./config.sh --url https://github.com/${REPO} --token ${githubToken} --name ${name} --labels self-hosted,${arch},hetzner --unattended
-./svc.sh install
-./svc.sh start
+if [ ! -z "${githubToken}" ]; then
+  mkdir /actions-runner && cd /actions-runner
+  curl -o runner.tar.gz -L ${runnerUrl}
+  tar xzf runner.tar.gz
+  export RUNNER_ALLOW_RUNASROOT=1
+  ./config.sh --url https://github.com/${REPO} --token ${githubToken} --name ${name} --labels self-hosted,${arch},hetzner --unattended
+  ./svc.sh install
+  ./svc.sh start
+else
+  echo "No GitHub token provided, skipping runner registration."
+fi
 `;
 
   console.log(`Creating server ${name} (${serverType}, ${arch})...`);
