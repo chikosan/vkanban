@@ -18,7 +18,7 @@ jobs:
       - name: Create Hetzner Server
         env:
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: node scripts/infrastructure/hcloud-runner.js create vkanban-runner-${{ github.run_id }} cx53
       - name: Wait for runner to come online
         run: sleep 60 # cx53 might take a bit longer to boot and run user_data
@@ -69,5 +69,5 @@ jobs:
       - name: Delete Hetzner Server
         env:
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: node scripts/infrastructure/hcloud-runner.js delete ${{ needs.setup-runner.outputs.runner_name }}
