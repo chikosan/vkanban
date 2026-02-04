@@ -42,7 +42,7 @@ async function request(path, options = {}) {
 async function getRegistrationToken() {
   console.log(`Fetching registration token for ${REPO}...`);
   try {
-    const command = `gh api --method POST repos/${REPO}/actions/runners/registration-token -q .token`;
+    const command = `gh api --method POST repos/${REPO}/actions/runners/registration-token -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" -q .token`;
     const token = execSync(command).toString().trim();
     if (token) return token;
   } catch (e) {
@@ -51,7 +51,7 @@ async function getRegistrationToken() {
 
   try {
     console.log("Attempting curl fallback for registration token...");
-    const command = `curl -v -X POST -fsSL -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${REPO}/actions/runners/registration-token`;
+    const command = `curl -X POST -fsSL -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/${REPO}/actions/runners/registration-token`;
     const response = execSync(command).toString();
     return JSON.parse(response).token;
   } catch (e) {
@@ -90,7 +90,6 @@ if [ ! -z "${githubToken}" ]; then
   curl -o runner.tar.gz -L ${runnerUrl}
   tar xzf runner.tar.gz
   export RUNNER_ALLOW_RUNASROOT=1
-  sleep 5
   ./config.sh --url https://github.com/${REPO} --token ${githubToken} --name ${name} --labels self-hosted,${arch},hetzner --unattended
   ./svc.sh install
   ./svc.sh start
