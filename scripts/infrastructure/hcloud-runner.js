@@ -89,9 +89,15 @@ echo "Starting user-data script..."
 
 # Install Docker
 apt-get update
-apt-get install -y docker.io curl tar
+apt-get install -y docker.io curl tar build-essential pkg-config libssl-dev
 systemctl start docker
 systemctl enable docker
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source $HOME/.cargo/env
+# Make rust available for all users (including the runner)
+ln -s /root/.cargo/bin/* /usr/local/bin/
 
 # Install GitHub Runner
 echo "Registering GitHub Runner..."
