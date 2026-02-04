@@ -44,11 +44,20 @@ const { execSync } = require('child_process');
 async function getRegistrationToken() {
   console.log(`Fetching registration token for ${REPO}...`);
   try {
+    // Try using gh CLI first
+    const command = `gh api --method POST repos/${REPO}/actions/runners/registration-token -q .token`;
+    const token = execSync(command).toString().trim();
+    if (token) return token;
+  } catch (e) {
+    console.log(`gh CLI failed, falling back to curl: ${e.message}`);
+  }
+
+  try {
     const command = `curl -X POST -fsSL -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${REPO}/actions/runners/registration-token`;
     const response = execSync(command).toString();
     return JSON.parse(response).token;
   } catch (e) {
-    throw new Error(`GitHub Token Curl Error: ${e.message}`);
+    throw new Error(`GitHub Token Retrieval Error: ${e.message}`);
   }
 }
 
