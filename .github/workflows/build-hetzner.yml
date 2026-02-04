@@ -1,0 +1,73 @@
+name: Build on Hetzner x64
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  setup-runner:
+    runs-on: ubuntu-latest
+    environment: G
+    outputs:
+      runner_name: ${{ steps.set-name.outputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-name
+        run: echo "name=vkanban-runner-${{ github.run_id }}" >> $GITHUB_OUTPUT
+      - name: Create Hetzner Server
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+        run: node scripts/infrastructure/hcloud-runner.js create vkanban-runner-${{ github.run_id }} cx53
+      - name: Wait for runner to come online
+        run: sleep 60 # cx53 might take a bit longer to boot and run user_data
+
+  build:
+    needs: setup-runner
+    runs-on: [self-hosted, x64, hetzner]
+    environment: G
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build Frontend
+        run: cd frontend && npm run build
+
+      - name: Build Backend
+        run: cargo build --release --bin server
+
+      - name: Login to registry
+        uses: docker/login-action@v3
+        with:
+          registry: docker-registry.app.chikorel.com
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and push image
+        run: |
+          docker build -t docker-registry.app.chikorel.com/vkanban/vkanban:latest .
+          docker push docker-registry.app.chikorel.com/vkanban/vkanban:latest
+
+  cleanup:
+    needs: setup-runner
+    if: always()
+    runs-on: ubuntu-latest
+    environment: G
+    steps:
+      - uses: actions/checkout@v4
+      - name: Delete Hetzner Server
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+        run: node scripts/infrastructure/hcloud-runner.js delete ${{ needs.setup-runner.outputs.runner_name }}

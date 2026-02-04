@@ -1,82 +1,65 @@
-# Build stage
-FROM node:24-alpine AS builder
+# Stage 1: Planner
+FROM lukemathwalker/cargo-chef:latest-rust-1.84 AS planner
+WORKDIR /app
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-# Install build dependencies
-RUN apk add --no-cache \
-    curl \
-    build-base \
-    perl \
-    llvm-dev \
-    clang-dev
-
-# Allow linking libclang on musl
-ENV RUSTFLAGS="-C target-feature=-crt-static"
-
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-ARG POSTHOG_API_KEY
-ARG POSTHOG_API_ENDPOINT
-
-ENV VITE_PUBLIC_POSTHOG_KEY=$POSTHOG_API_KEY
-ENV VITE_PUBLIC_POSTHOG_HOST=$POSTHOG_API_ENDPOINT
-
-# Set working directory
+# Stage 2: Caching & Building Backend
+FROM lukemathwalker/cargo-chef:latest-rust-1.84 AS builder
 WORKDIR /app
 
-# Copy package files for dependency caching
-COPY package*.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY frontend/package*.json ./frontend/
-COPY npx-cli/package*.json ./npx-cli/
+# Install system dependencies for SQLx and other crates
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    clang \
+    libclang-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install pnpm and dependencies
-RUN npm install -g pnpm && pnpm install
+# Build dependencies - this is the layer that will be cached
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
 
-# Copy source code
+# Build the actual application
 COPY . .
-
-# Build application
-RUN npm run generate-types
-RUN cd frontend && NODE_OPTIONS="--max-old-space-size=4096" pnpm run build
 RUN cargo build --release --bin server
 
-# Runtime stage
-FROM alpine:latest AS runtime
+# Stage 3: Frontend Build
+FROM node:22-slim AS frontend-builder
+WORKDIR /app
+RUN npm install -g pnpm
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY frontend/package.json ./frontend/
+COPY npx-cli/package.json ./npx-cli/
+RUN pnpm install --frozen-lockfile
 
-# Install runtime dependencies
-RUN apk add --no-cache \
+COPY . .
+RUN npm run generate-types
+RUN cd frontend && pnpm run build
+
+# Stage 4: Runtime
+FROM debian:bookworm-slim AS runtime
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
     ca-certificates \
     tini \
-    libgcc \
-    wget
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create app user for security
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
+RUN groupadd -g 1001 appgroup && \
+    useradd -u 1001 -g appgroup -s /bin/sh appuser
 
-# Copy binary from builder
+# Copy binaries and assets
 COPY --from=builder /app/target/release/server /usr/local/bin/server
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
-# Create repos directory and set permissions
-RUN mkdir -p /repos && \
-    chown -R appuser:appgroup /repos
-
-# Switch to non-root user
+RUN mkdir -p /repos && chown -R appuser:appgroup /repos /app
 USER appuser
 
-# Set runtime environment
 ENV HOST=0.0.0.0
 ENV PORT=3000
 EXPOSE 3000
 
-# Set working directory
-WORKDIR /repos
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider "http://${HOST:-localhost}:${PORT:-3000}" || exit 1
-
-# Run the application
-ENTRYPOINT ["/sbin/tini", "--"]
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["server"]
