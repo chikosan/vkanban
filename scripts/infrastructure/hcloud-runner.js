@@ -46,14 +46,16 @@ async function getRegistrationToken() {
     const token = execSync(command).toString().trim();
     if (token) return token;
   } catch (e) {
-    console.log(`gh CLI failed, falling back to curl: ${e.message}`);
+    console.error(`gh CLI failed: ${e.stdout?.toString() || e.message}`);
   }
 
   try {
-    const command = `curl -X POST -fsSL -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${REPO}/actions/runners/registration-token`;
+    console.log("Attempting curl fallback for registration token...");
+    const command = `curl -v -X POST -fsSL -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${REPO}/actions/runners/registration-token`;
     const response = execSync(command).toString();
     return JSON.parse(response).token;
   } catch (e) {
+    console.error(`curl failed: ${e.stdout?.toString() || e.message}`);
     throw new Error(`GitHub Token Retrieval Error: ${e.message}`);
   }
 }
