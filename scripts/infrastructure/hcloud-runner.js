@@ -41,6 +41,7 @@ async function request(path, options = {}) {
 // Get GitHub Runner Registration Token via API
 async function getRegistrationToken() {
   const url = `https://api.github.com/repos/${REPO}/actions/runners/registration-token`;
+  console.log(`Fetching registration token for ${REPO}...`);
   return new Promise((resolve, reject) => {
     const req = https.request(url, {
       method: 'POST',
@@ -56,7 +57,8 @@ async function getRegistrationToken() {
         if (res.statusCode === 201) {
           resolve(JSON.parse(data).token);
         } else {
-          reject(new Error(`GitHub Token Error: ${res.statusCode} ${data}`));
+          console.error(`GitHub API response: ${data}`);
+          reject(new Error(`GitHub Token Error: ${res.statusCode} (Ensure GH_PAT has 'repo' scope and is not expired)`));
         }
       });
     });
