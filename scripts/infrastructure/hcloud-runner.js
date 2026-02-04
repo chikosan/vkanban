@@ -72,6 +72,9 @@ async function createServer(name, serverType = "cx53") {
     : "https://github.com/actions/runner/releases/download/v2.321.0/actions-runner-linux-x64-2.321.0.tar.gz";
 
   const userData = `#!/bin/bash
+exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+echo "Starting user-data script..."
+
 # Install Docker
 apt-get update
 apt-get install -y docker.io curl tar
@@ -80,6 +83,7 @@ systemctl enable docker
 
 # Install GitHub Runner
 if [ ! -z "${githubToken}" ]; then
+  echo "Registering GitHub Runner..."
   mkdir /actions-runner && cd /actions-runner
   curl -o runner.tar.gz -L ${runnerUrl}
   tar xzf runner.tar.gz
@@ -88,6 +92,7 @@ if [ ! -z "${githubToken}" ]; then
   ./config.sh --url https://github.com/${REPO} --token ${githubToken} --name ${name} --labels self-hosted,${arch},hetzner --unattended
   ./svc.sh install
   ./svc.sh start
+  echo "Runner registration complete."
 else
   echo "No GitHub token provided, skipping runner registration."
 fi
