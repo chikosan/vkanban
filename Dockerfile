@@ -1,11 +1,11 @@
 # Stage 1: Planner
-FROM lukemathwalker/cargo-chef:latest-rust-nightly AS planner
+FROM lukemathwalker/cargo-chef:latest-rust-nightly-bookworm AS planner
 WORKDIR /app
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
 # Stage 2: Caching & Building Backend
-FROM lukemathwalker/cargo-chef:latest-rust-nightly AS builder
+FROM lukemathwalker/cargo-chef:latest-rust-nightly-bookworm AS builder
 WORKDIR /app
 
 # Install system dependencies for SQLx and other crates
