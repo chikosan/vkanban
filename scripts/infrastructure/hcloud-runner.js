@@ -38,33 +38,18 @@ async function request(path, options = {}) {
   });
 }
 
+const { execSync } = require('child_process');
+
 // Get GitHub Runner Registration Token via API
 async function getRegistrationToken() {
-  const url = `https://api.github.com/repos/${REPO}/actions/runners/registration-token`;
-  console.log(`Fetching registration token for ${REPO}... (Token length: ${GITHUB_TOKEN.length})`);
-  return new Promise((resolve, reject) => {
-    const req = https.request(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `token ${GITHUB_TOKEN}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'node.js'
-      }
-    }, (res) => {
-      let data = '';
-      res.on('data', (chunk) => data += chunk);
-      res.on('end', () => {
-        if (res.statusCode === 201) {
-          resolve(JSON.parse(data).token);
-        } else {
-          console.error(`GitHub API response: ${data}`);
-          reject(new Error(`GitHub Token Error: ${res.statusCode} (Ensure GH_PAT has 'repo' scope and is not expired)`));
-        }
-      });
-    });
-    req.on('error', reject);
-    req.end();
-  });
+  console.log(`Fetching registration token for ${REPO}...`);
+  try {
+    const command = `curl -X POST -fsSL -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${REPO}/actions/runners/registration-token`;
+    const response = execSync(command).toString();
+    return JSON.parse(response).token;
+  } catch (e) {
+    throw new Error(`GitHub Token Curl Error: ${e.message}`);
+  }
 }
 
 async function createServer(name, serverType = "cx53") {
