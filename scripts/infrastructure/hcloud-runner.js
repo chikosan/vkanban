@@ -41,25 +41,38 @@ async function request(path, options = {}) {
 
 async function getRegistrationToken() {
   console.log(`Fetching registration token for ${REPO}...`);
-  // Use the updated Fine-grained PAT
-  process.env.GH_TOKEN = GH_PAT;
   
+  // Try gh CLI with Bearer (Standard for modern PATs)
   try {
-    const command = `gh api --method POST repos/${REPO}/actions/runners/registration-token -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" -q .token`;
+    console.log("Method 1: gh api with internal auth...");
+    const command = `GH_TOKEN=${GH_PAT} gh api --method POST repos/${REPO}/actions/runners/registration-token -q .token`;
     const token = execSync(command).toString().trim();
     if (token) return token;
   } catch (e) {
     console.error(`gh CLI failed: ${e.message}`);
   }
 
+  // Try curl with Bearer
   try {
-    console.log("Attempting curl fallback for registration token...");
+    console.log("Method 2: curl with Bearer auth...");
+    const command = `curl -X POST -fsSL -H "Authorization: Bearer ${GH_PAT}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/${REPO}/actions/runners/registration-token`;
+    const response = execSync(command).toString();
+    const token = JSON.parse(response).token;
+    if (token) return token;
+  } catch (e) {
+    console.error(`curl Bearer failed: ${e.message}`);
+  }
+
+  // Try curl with token
+  try {
+    console.log("Method 3: curl with token auth...");
     const command = `curl -X POST -fsSL -H "Authorization: token ${GH_PAT}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/${REPO}/actions/runners/registration-token`;
     const response = execSync(command).toString();
-    return JSON.parse(response).token;
+    const token = JSON.parse(response).token;
+    if (token) return token;
   } catch (e) {
-    console.error(`curl failed: ${e.message}`);
-    throw new Error(`GitHub Token Retrieval Error: ${e.message}`);
+    console.error(`curl token failed: ${e.message}`);
+    throw new Error(`All registration token retrieval methods failed.`);
   }
 }
 
