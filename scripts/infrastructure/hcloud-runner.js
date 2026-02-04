@@ -1,8 +1,9 @@
 const https = require('https');
+const { execSync } = require('child_process');
 
 const HCLOUD_TOKEN = process.env.HCLOUD_TOKEN;
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN; // GitHub PAT to create registration tokens
-const REPO = process.env.GITHUB_REPOSITORY; // e.g. "chikosan/vkanban"
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const REPO = process.env.GITHUB_REPOSITORY;
 
 if (!HCLOUD_TOKEN || !GITHUB_TOKEN || !REPO) {
   console.error("Missing required environment variables.");
@@ -38,13 +39,9 @@ async function request(path, options = {}) {
   });
 }
 
-const { execSync } = require('child_process');
-
-// Get GitHub Runner Registration Token via API
 async function getRegistrationToken() {
   console.log(`Fetching registration token for ${REPO}...`);
   try {
-    // Try using gh CLI first
     const command = `gh api --method POST repos/${REPO}/actions/runners/registration-token -q .token`;
     const token = execSync(command).toString().trim();
     if (token) return token;
@@ -67,7 +64,6 @@ async function createServer(name, serverType = "cx53") {
     githubToken = await getRegistrationToken();
   } catch (e) {
     console.error(`Warning: Could not get GitHub registration token: ${e.message}`);
-    console.error("The server will be created but might not register as a runner.");
   }
 
   const arch = serverType.startsWith("cax") ? "arm64" : "x64";
@@ -88,6 +84,7 @@ if [ ! -z "${githubToken}" ]; then
   curl -o runner.tar.gz -L ${runnerUrl}
   tar xzf runner.tar.gz
   export RUNNER_ALLOW_RUNASROOT=1
+  sleep 5
   ./config.sh --url https://github.com/${REPO} --token ${githubToken} --name ${name} --labels self-hosted,${arch},hetzner --unattended
   ./svc.sh install
   ./svc.sh start
@@ -128,7 +125,7 @@ async function deleteServerByName(name) {
 
 const command = process.argv[2];
 const serverName = process.argv[3];
-const serverType = process.argv[4] || "cax21"; // cax21 is a decent ARM64 type
+const serverType = process.argv[4];
 
 if (command === "create") {
   createServer(serverName, serverType).catch(err => {
@@ -140,6 +137,4 @@ if (command === "create") {
     console.error(err);
     process.exit(1);
   });
-} else {
-  console.log("Usage: node hcloud-runner.js [create|delete] [name] [type]");
 }
