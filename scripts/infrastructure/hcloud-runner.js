@@ -87,9 +87,9 @@ async function createServer(name, serverType = "cx53") {
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 echo "Starting user-data script..."
 
-# Install Docker
+# Install Docker and build dependencies
 apt-get update
-apt-get install -y docker.io curl tar build-essential pkg-config libssl-dev
+apt-get install -y docker.io curl tar build-essential pkg-config libssl-dev libclang-dev lld
 systemctl start docker
 systemctl enable docker
 
