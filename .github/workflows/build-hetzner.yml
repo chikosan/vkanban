@@ -64,7 +64,7 @@ jobs:
           docker push docker-registry.app.chikorel.com/vkanban/vkanban:latest
 
   cleanup:
-    needs: setup-runner
+    needs: [setup-runner, build]
     if: always()
     runs-on: ubuntu-latest
     environment: G
