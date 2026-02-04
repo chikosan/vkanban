@@ -46,7 +46,7 @@ async function getRegistrationToken() {
     const req = https.request(url, {
       method: 'POST',
       headers: {
-        'Authorization': `token ${GITHUB_TOKEN}`,
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
         'Accept': 'application/vnd.github.v3+json',
         'User-Agent': 'node.js'
       }
