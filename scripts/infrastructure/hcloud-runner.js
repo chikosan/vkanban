@@ -41,12 +41,12 @@ async function request(path, options = {}) {
 // Get GitHub Runner Registration Token via API
 async function getRegistrationToken() {
   const url = `https://api.github.com/repos/${REPO}/actions/runners/registration-token`;
-  console.log(`Fetching registration token for ${REPO}...`);
+  console.log(`Fetching registration token for ${REPO}... (Token length: ${GITHUB_TOKEN.length})`);
   return new Promise((resolve, reject) => {
     const req = https.request(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Authorization': `token ${GITHUB_TOKEN}`,
         'Accept': 'application/vnd.github.v3+json',
         'User-Agent': 'node.js'
       }

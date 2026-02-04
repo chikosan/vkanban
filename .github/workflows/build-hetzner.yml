@@ -13,6 +13,10 @@ jobs:
       runner_name: ${{ steps.set-name.outputs.name }}
     steps:
       - uses: actions/checkout@v4
+      - name: Verify Secrets
+        run: |
+          if [ -z "${{ secrets.HCLOUD_TOKEN }}" ]; then echo "HCLOUD_TOKEN is missing"; fi
+          if [ -z "${{ secrets.GH_PAT }}" ]; then echo "GH_PAT is missing"; fi
       - id: set-name
         run: echo "name=vkanban-runner-${{ github.run_id }}" >> $GITHUB_OUTPUT
       - name: Create Hetzner Server
