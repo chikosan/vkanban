@@ -5,18 +5,10 @@ on:
   push:
     branches: [ main ]
 
-permissions:
-  contents: write
-  actions: write
-  checks: write
-
 jobs:
   setup-runner:
     runs-on: ubuntu-latest
     environment: G
-    permissions:
-      contents: write
-      actions: write
     outputs:
       runner_name: ${{ steps.set-name.outputs.name }}
     steps:
