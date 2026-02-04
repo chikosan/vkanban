@@ -2,11 +2,11 @@ const https = require('https');
 const { execSync } = require('child_process');
 
 const HCLOUD_TOKEN = process.env.HCLOUD_TOKEN;
-const GH_PAT = process.env.GH_PAT; // Use GH_PAT specifically
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN; // Back to standard env var name
 const REPO = process.env.GITHUB_REPOSITORY;
 
-if (!HCLOUD_TOKEN || !GH_PAT || !REPO) {
-  console.error("Missing required environment variables: HCLOUD_TOKEN, GH_PAT, or GITHUB_REPOSITORY");
+if (!HCLOUD_TOKEN || !GITHUB_TOKEN || !REPO) {
+  console.error("Missing required environment variables: HCLOUD_TOKEN, GITHUB_TOKEN, or GITHUB_REPOSITORY");
   process.exit(1);
 }
 
@@ -41,8 +41,8 @@ async function request(path, options = {}) {
 
 async function getRegistrationToken() {
   console.log(`Fetching registration token for ${REPO}...`);
-  // gh CLI expects GH_TOKEN or GITHUB_TOKEN
-  process.env.GH_TOKEN = GH_PAT;
+  // Use GITHUB_TOKEN
+  process.env.GH_TOKEN = GITHUB_TOKEN;
   
   try {
     const command = `gh api --method POST repos/${REPO}/actions/runners/registration-token -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" -q .token`;
@@ -54,10 +54,11 @@ async function getRegistrationToken() {
 
   try {
     console.log("Attempting curl fallback for registration token...");
-    const command = `curl -X POST -fsSL -H "Authorization: Bearer ${GH_PAT}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/${REPO}/actions/runners/registration-token`;
+    const command = `curl -X POST -fsSL -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/${REPO}/actions/runners/registration-token`;
     const response = execSync(command).toString();
     return JSON.parse(response).token;
   } catch (e) {
+    console.error(`curl failed: ${e.stdout?.toString() || e.message}`);
     throw new Error(`GitHub Token Retrieval Error: ${e.message}`);
   }
 }
