@@ -2,11 +2,11 @@ const https = require('https');
 const { execSync } = require('child_process');
 
 const HCLOUD_TOKEN = process.env.HCLOUD_TOKEN;
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GH_PAT = process.env.GH_PAT; // Use GH_PAT specifically
 const REPO = process.env.GITHUB_REPOSITORY;
 
-if (!HCLOUD_TOKEN || !GITHUB_TOKEN || !REPO) {
-  console.error("Missing required environment variables.");
+if (!HCLOUD_TOKEN || !GH_PAT || !REPO) {
+  console.error("Missing required environment variables: HCLOUD_TOKEN, GH_PAT, or GITHUB_REPOSITORY");
   process.exit(1);
 }
 
@@ -41,33 +41,29 @@ async function request(path, options = {}) {
 
 async function getRegistrationToken() {
   console.log(`Fetching registration token for ${REPO}...`);
+  // gh CLI expects GH_TOKEN or GITHUB_TOKEN
+  process.env.GH_TOKEN = GH_PAT;
+  
   try {
     const command = `gh api --method POST repos/${REPO}/actions/runners/registration-token -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" -q .token`;
     const token = execSync(command).toString().trim();
     if (token) return token;
   } catch (e) {
-    console.error(`gh CLI failed: ${e.stdout?.toString() || e.message}`);
+    console.error(`gh CLI failed: ${e.message}`);
   }
 
   try {
     console.log("Attempting curl fallback for registration token...");
-    const command = `curl -X POST -fsSL -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/${REPO}/actions/runners/registration-token`;
+    const command = `curl -X POST -fsSL -H "Authorization: Bearer ${GH_PAT}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/${REPO}/actions/runners/registration-token`;
     const response = execSync(command).toString();
     return JSON.parse(response).token;
   } catch (e) {
-    console.error(`curl failed: ${e.stdout?.toString() || e.message}`);
     throw new Error(`GitHub Token Retrieval Error: ${e.message}`);
   }
 }
 
 async function createServer(name, serverType = "cx53") {
-  let githubToken = "";
-  try {
-    githubToken = await getRegistrationToken();
-  } catch (e) {
-    console.error(`Warning: Could not get GitHub registration token: ${e.message}`);
-  }
-
+  const githubToken = await getRegistrationToken();
   const arch = serverType.startsWith("cax") ? "arm64" : "x64";
   const runnerUrl = arch === "arm64" 
     ? "https://github.com/actions/runner/releases/download/v2.321.0/actions-runner-linux-arm64-2.321.0.tar.gz"
@@ -84,19 +80,17 @@ systemctl start docker
 systemctl enable docker
 
 # Install GitHub Runner
-if [ ! -z "${githubToken}" ]; then
-  echo "Registering GitHub Runner..."
-  mkdir /actions-runner && cd /actions-runner
-  curl -o runner.tar.gz -L ${runnerUrl}
-  tar xzf runner.tar.gz
-  export RUNNER_ALLOW_RUNASROOT=1
-  ./config.sh --url https://github.com/${REPO} --token ${githubToken} --name ${name} --labels self-hosted,${arch},hetzner --unattended
-  ./svc.sh install
-  ./svc.sh start
-  echo "Runner registration complete."
-else
-  echo "No GitHub token provided, skipping runner registration."
-fi
+echo "Registering GitHub Runner..."
+mkdir /actions-runner && cd /actions-runner
+curl -o runner.tar.gz -L ${runnerUrl}
+tar xzf runner.tar.gz
+export RUNNER_ALLOW_RUNASROOT=1
+# Ensure we are in the right directory
+cd /actions-runner
+./config.sh --url https://github.com/${REPO} --token ${githubToken} --name ${name} --labels self-hosted,${arch},hetzner --unattended
+./svc.sh install
+./svc.sh start
+echo "Runner registration complete."
 `;
 
   console.log(`Creating server ${name} (${serverType}, ${arch})...`);

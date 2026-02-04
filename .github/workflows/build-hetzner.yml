@@ -15,17 +15,17 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify Secrets
         run: |
-          if [ -z "${{ secrets.HCLOUD_TOKEN }}" ]; then echo "HCLOUD_TOKEN is missing"; fi
-          if [ -z "${{ secrets.GH_PAT }}" ]; then echo "GH_PAT is missing"; fi
+          if [ -z "${{ secrets.HCLOUD_TOKEN }}" ]; then echo "HCLOUD_TOKEN is missing"; exit 1; fi
+          if [ -z "${{ secrets.GH_PAT }}" ]; then echo "GH_PAT is missing"; exit 1; fi
       - id: set-name
         run: echo "name=vkanban-runner-${{ github.run_id }}" >> $GITHUB_OUTPUT
       - name: Create Hetzner Server
         env:
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: node scripts/infrastructure/hcloud-runner.js create vkanban-runner-${{ github.run_id }} cx53
       - name: Wait for runner to come online
-        run: sleep 60 # cx53 might take a bit longer to boot and run user_data
+        run: sleep 60
 
   build:
     needs: setup-runner
@@ -33,7 +33,7 @@ jobs:
     environment: G
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -73,5 +73,5 @@ jobs:
       - name: Delete Hetzner Server
         env:
           HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: node scripts/infrastructure/hcloud-runner.js delete ${{ needs.setup-runner.outputs.runner_name }}
