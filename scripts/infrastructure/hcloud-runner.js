@@ -100,11 +100,15 @@ mkswap /swapfile
 swapon /swapfile
 echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-source $HOME/.cargo/env
-# Make rust available for all users (including the runner)
-ln -s /root/.cargo/bin/* /usr/local/bin/
+# Install Rust globally
+export RUSTUP_HOME=/opt/rustup
+export CARGO_HOME=/opt/cargo
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+# Add to global path
+echo 'export RUSTUP_HOME=/opt/rustup' >> /etc/environment
+echo 'export CARGO_HOME=/opt/cargo' >> /etc/environment
+echo 'export PATH="/opt/cargo/bin:$PATH"' >> /etc/environment
+ln -s /opt/cargo/bin/* /usr/local/bin/
 
 # Install GitHub Runner
 echo "Registering GitHub Runner..."
