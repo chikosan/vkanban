@@ -1,12 +1,12 @@
 # Stage 1: Planner
-FROM lukemathwalker/cargo-chef:latest-rust-1.84-bookworm AS planner
+FROM lukemathwalker/cargo-chef:latest-rust-nightly AS planner
 WORKDIR /app
 COPY . .
 ENV RUSTC_BOOTSTRAP=1
 RUN cargo chef prepare --recipe-path recipe.json
 
 # Stage 2: Caching & Building Backend
-FROM lukemathwalker/cargo-chef:latest-rust-1.84-bookworm AS builder
+FROM lukemathwalker/cargo-chef:latest-rust-nightly AS builder
 WORKDIR /app
 ENV RUSTC_BOOTSTRAP=1
 
