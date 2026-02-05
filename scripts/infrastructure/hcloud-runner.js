@@ -93,6 +93,13 @@ apt-get install -y docker.io curl tar build-essential pkg-config libssl-dev libc
 systemctl start docker
 systemctl enable docker
 
+# Add Swap
+fallocate -l 8G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
 # Install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source $HOME/.cargo/env
